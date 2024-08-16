@@ -1,5 +1,5 @@
 # Thin Layer Chromatography (TLC) Viewer and Analyzer
-
+See the original c# version : https://github.com/danammeansbear/OpenTLC
 ## Overview
 
 This project is an open-source Python-based tool designed to perform Thin Layer Chromatography (TLC) analysis with the same precision and accuracy as High-Performance Thin Layer Chromatography (HPTLC). The tool provides a comprehensive platform for visualizing and analyzing TLC plates, particularly useful in the screening of medicinal cannabinoids. It offers the convenience of smartphone integration for quantitative evaluation of chromatographic analyses.
