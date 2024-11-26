@@ -44,7 +44,82 @@ Ensure you have the following installed:
 - PIL (Python Imaging Library)
 - TensorFlow (for optional advanced image processing and machine learning tasks)
 - Your smartphone's camera (for capturing TLC plates)
+This project provides a GUI application to detect blobs in images and compare results between control and test images. Follow the steps below to install and run the project.
 
+Prerequisites
+
+Python:
+
+Install Python 3.7 or later from https://www.python.org/downloads/.
+Verify installation: python --version
+PIP:
+
+Verify that PIP is installed: pip --version
+Optional Tools:
+
+Install Git from https://git-scm.com/ if you want to clone the repository.
+Use a code editor like VS Code or PyCharm for editing.
+Installation Instructions
+
+Step 1: Clone or Download the Repository
+
+Clone the repository: git clone <repository-url> Replace <repository-url> with the actual link to this repository.
+
+Or download the ZIP file:
+
+Download the ZIP file and extract it to a folder on your computer.
+Navigate to the project directory: cd <project-directory>
+
+Step 2: Create a Virtual Environment
+
+Create the virtual environment: python -m venv venv
+
+Activate the virtual environment:
+
+On Windows: venv\Scripts\activate
+On macOS/Linux: source venv/bin/activate
+Step 3: Install Required Dependencies
+
+Install all dependencies using the requirements.txt file: pip install -r requirements.txt
+
+If the requirements.txt file is missing, manually install the required libraries: pip install pillow opencv-python-headless numpy pandas
+
+Step 4: Verify the Installation
+
+Create a test file called test.py with the following code: from tkinter import Tk from PIL import Image, ImageTk import cv2 import numpy as np import pandas as pd
+
+print("All dependencies installed successfully!")
+
+Run the test script: python test.py
+
+Step 5: Run the Project
+
+Execute the main Python script: python imageselect.py
+Optional Enhancements
+
+Add a Shortcut (Windows)
+
+Create a batch file to simplify running the script:
+Open a text editor and paste the following: @echo off python path\to\imageselect.py pause
+Save the file as run_project.bat in the project directory.
+Double-click run_project.bat to launch the application.
+Package the Application as an Executable
+
+Install PyInstaller: pip install pyinstaller
+
+Generate an executable: pyinstaller --onefile imageselect.py
+
+The executable will be available in the dist folder.
+
+Troubleshooting
+
+Pillow ImportError: Ensure Pillow is installed: pip install pillow
+
+OpenCV ImportError: Install OpenCV (headless version): pip install opencv-python-headless
+
+Environment Errors: If issues persist, recreate the virtual environment: rm -rf venv python -m venv venv
+
+This should help you get the project installed and running. If you encounter issues, feel free to ask for help!
 ### Usage
 
 Capturing Images:
