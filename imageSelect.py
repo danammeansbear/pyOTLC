@@ -1,9 +1,44 @@
-from tkinter import Tk, filedialog, Canvas, Frame, Menu, Scrollbar, StringVar, Entry, Label, Button, PanedWindow
+from tkinter import Tk, filedialog, Canvas, Frame, Menu, Scrollbar, StringVar, Entry, Label, Button, PanedWindow, Toplevel
 from tkinter.ttk import Treeview
+from PIL import Image, ImageTk, ImageSequence
 import cv2
 import numpy as np
 import pandas as pd
-from PIL import Image, ImageTk
+
+
+def show_modal_loading_screen(root, gif_path="loading.gif"):
+    """Show a modal loading screen with a GIF."""
+    loading_screen = Toplevel(root)
+    loading_screen.title("Loading...")
+    loading_screen.geometry("400x300")
+    loading_screen.resizable(False, False)
+
+    # Center the loading screen over the main window
+    root.update_idletasks()
+    x = root.winfo_x() + (root.winfo_width() // 2) - 200
+    y = root.winfo_y() + (root.winfo_height() // 2) - 150
+    loading_screen.geometry(f"+{x}+{y}")
+
+    # Prevent interaction with the main window
+    loading_screen.transient(root)
+    loading_screen.grab_set()
+
+    # Add GIF as the loading animation
+    gif_label = Label(loading_screen)
+    gif_label.pack(expand=True, fill="both")
+
+    # Load and play the GIF
+    frames = [ImageTk.PhotoImage(img) for img in ImageSequence.Iterator(Image.open(gif_path))]
+
+    def update_frame(frame_index=0):
+        frame = frames[frame_index]
+        gif_label.configure(image=frame)
+        next_frame = (frame_index + 1) % len(frames)
+        loading_screen.after(100, update_frame, next_frame)
+
+    update_frame()
+    return loading_screen
+
 
 def detect_blobs(image):
     """Detect blobs in the image and return overlayed image and blob data."""
@@ -48,6 +83,45 @@ def detect_blobs(image):
         )
     return overlayed_img, pd.DataFrame(blob_data)
 
+
+def open_file(label, canvas, tree, filter_var, root, gif_path="loading.gif"):
+    """Open an image file, process it, and display the results."""
+    image_path = filedialog.askopenfilename(
+        title=f"Select {label} Image File", filetypes=[("Image files", "*.jpg;*.png;*.jpeg")]
+    )
+    if not image_path:
+        return
+
+    # Show the loading screen
+    loading_screen = show_modal_loading_screen(root, gif_path)
+
+    # Process the image after showing the loading screen
+    root.after(100, lambda: process_image(label, image_path, canvas, tree, filter_var, root, loading_screen))
+
+
+def process_image(label, image_path, canvas, tree, filter_var, root, loading_screen):
+    """Process the selected image."""
+    img = cv2.imread(image_path)
+    overlayed_img, blob_data = detect_blobs(img)
+
+    img_pil = Image.fromarray(cv2.cvtColor(overlayed_img, cv2.COLOR_BGR2RGB))
+
+    # Update canvas dynamically with image resizing
+    def update_canvas(event):
+        resize_and_fit_image(canvas, img_pil, event.width, event.height)
+
+    root.bind("<Configure>", update_canvas)
+
+    # Update the canvas and table based on the label
+    canvas.delete("all")
+    resize_and_fit_image(canvas, img_pil, canvas.winfo_width(), canvas.winfo_height())
+    tree.delete(*tree.get_children())
+    populate_table(tree, blob_data)
+
+    # Close the loading screen
+    loading_screen.destroy()
+
+
 def resize_and_fit_image(canvas, img_pil, canvas_width, canvas_height):
     """Resize the image proportionally to fit within its frame."""
     img_width, img_height = img_pil.size
@@ -68,106 +142,74 @@ def resize_and_fit_image(canvas, img_pil, canvas_width, canvas_height):
     )
     canvas.img_tk = img_tk_resized
 
+
 def populate_table(tree, dataframe):
     """Populate the Treeview table with data."""
     for index, row in dataframe.iterrows():
         tree.insert("", "end", values=list(row))
 
-def filter_table(tree, dataframe, filter_var):
-    """Filter the Treeview table based on the filter entry."""
-    query = filter_var.get().lower()
-    filtered_data = dataframe[dataframe.apply(
-        lambda row: row.astype(str).str.contains(query, case=False).any(), axis=1
-    )]
-    tree.delete(*tree.get_children())
-    populate_table(tree, filtered_data)
-
-def open_file(canvas, tree, filter_var, root):
-    """Open an image file and process it."""
-    image_path = filedialog.askopenfilename(
-        title="Select Image File", filetypes=[("Image files", "*.jpg;*.png;*.jpeg")]
-    )
-    if not image_path:
-        return
-
-    img = cv2.imread(image_path)
-    overlayed_img, blob_data = detect_blobs(img)
-
-    img_pil = Image.fromarray(cv2.cvtColor(overlayed_img, cv2.COLOR_BGR2RGB))
-
-    # Update canvas dynamically with image resizing
-    def update_canvas(event):
-        resize_and_fit_image(canvas, img_pil, event.width, event.height)
-
-    root.bind("<Configure>", update_canvas)
-
-    # Populate the table
-    tree.delete(*tree.get_children())
-    populate_table(tree, blob_data)
 
 def main():
     root = Tk()
-    root.title("Blob Detection")
-    root.geometry("800x600")  # Start with a smaller default size
-
-    # Menu
-    menu_bar = Menu(root)
-    file_menu = Menu(menu_bar, tearoff=0)
-    file_menu.add_command(label="Open File", command=lambda: open_file(canvas, tree, filter_var, root))
-    file_menu.add_separator()
-    file_menu.add_command(label="Exit", command=root.quit)
-    menu_bar.add_cascade(label="File", menu=file_menu)
-    root.config(menu=menu_bar)
+    root.title("Blob Detection - Control and Test")
+    root.geometry("1200x800")
 
     # PanedWindow
-    paned_window = PanedWindow(root, orient="horizontal")
+    paned_window = PanedWindow(root, orient="vertical")
     paned_window.pack(fill="both", expand=True)
 
-    # Image Frame
-    frame_image = Frame(paned_window, bg="gray")
-    paned_window.add(frame_image, stretch="always")
+    # Control Section
+    frame_control = Frame(paned_window, bg="lightgray", pady=10)
+    paned_window.add(frame_control, stretch="always")
+    Label(frame_control, text="Control Image and Data Table", font=("Helvetica", 16), bg="lightgray").pack()
 
-    # Data Frame
-    frame_data = Frame(paned_window, bg="white")
-    paned_window.add(frame_data, stretch="always")
+    canvas_control = Canvas(frame_control, bg="black", height=300)
+    canvas_control.pack(expand=True, fill="both", pady=5)
 
-    # Image Canvas
-    canvas = Canvas(frame_image, bg="black")
-    canvas.pack(expand=True, fill="both")
-
-    # Blob Data Table
-    label = Label(frame_data, text="Blob Data", font=("Helvetica", 14), bg="white")
-    label.pack(pady=5)
-
-    # Filter Entry
-    filter_var = StringVar()
-    filter_entry = Entry(frame_data, textvariable=filter_var, font=("Helvetica", 10))
-    filter_entry.pack(pady=5)
-
-    filter_button = Button(
-        frame_data,
-        text="Filter",
-        command=lambda: filter_table(tree, pd.DataFrame(), filter_var),
-    )
-    filter_button.pack(pady=5)
-
-    # Treeview Table
-    tree = Treeview(
-        frame_data,
+    tree_control = Treeview(
+        frame_control,
         columns=["Blob ID", "Area", "Pixel Size", "Saturation Level", "Hue", "Value"],
         show="headings",
-        height=20,
+        height=10,
     )
     for col in ["Blob ID", "Area", "Pixel Size", "Saturation Level", "Hue", "Value"]:
-        tree.heading(col, text=col)
-        tree.column(col, width=150, anchor="center")
-    tree.pack(expand=True, fill="both", padx=5, pady=5)
+        tree_control.heading(col, text=col)
+        tree_control.column(col, width=150, anchor="center")
+    tree_control.pack(expand=True, fill="both", padx=5, pady=5)
 
-    scrollbar = Scrollbar(frame_data, orient="vertical", command=tree.yview)
-    tree.configure(yscrollcommand=scrollbar.set)
-    scrollbar.pack(side="right", fill="y")
+    Button(
+        frame_control,
+        text="Select Control Image",
+        command=lambda: open_file("Control", canvas_control, tree_control, None, root),
+    ).pack(pady=10)
+
+    # Test Section
+    frame_test = Frame(paned_window, bg="lightblue", pady=10)
+    paned_window.add(frame_test, stretch="always")
+    Label(frame_test, text="Test Image and Data Table", font=("Helvetica", 16), bg="lightblue").pack()
+
+    canvas_test = Canvas(frame_test, bg="black", height=300)
+    canvas_test.pack(expand=True, fill="both", pady=5)
+
+    tree_test = Treeview(
+        frame_test,
+        columns=["Blob ID", "Area", "Pixel Size", "Saturation Level", "Hue", "Value"],
+        show="headings",
+        height=10,
+    )
+    for col in ["Blob ID", "Area", "Pixel Size", "Saturation Level", "Hue", "Value"]:
+        tree_test.heading(col, text=col)
+        tree_test.column(col, width=150, anchor="center")
+    tree_test.pack(expand=True, fill="both", padx=5, pady=5)
+
+    Button(
+        frame_test,
+        text="Select Test Image",
+        command=lambda: open_file("Test", canvas_test, tree_test, None, root),
+    ).pack(pady=10)
 
     root.mainloop()
+
 
 if __name__ == "__main__":
     main()
